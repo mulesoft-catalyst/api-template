@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<soap:Fault xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+	<faultcode>soap:Server</faultcode>
+	<faultstring>Operation</faultstring>
+	<faultActor>SOAP API Template V1</faultActor>
+	<detail>Detailed description of the error</detail>
+</soap:Fault>

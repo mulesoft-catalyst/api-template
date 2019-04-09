@@ -1,0 +1,33 @@
+<mule xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit-soap="http://www.mulesoft.org/schema/mule/apikit-soap" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/apikit-soap http://www.mulesoft.org/schema/mule/apikit-soap/current/mule-apikit-soap.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/schema/mule/api-platform-gw/current/mule-api-platform-gw.xsd">
+  <http:listener-config name="api-httpListenerConfig" host="${api.http.listener.host}" port="${api.http.listener.port}" doc:name="HTTP Listener Configuration"/>
+  <apikit-soap:config name="/SOAPInterfaceService/api/api-config" wsdlUrl="soap-api.wsdl" serviceName="SOAPInterfaceService" portName="api" doc:name="APIkit SOAP: Configuration"/>
+  <api-platform-gw:api apiName="${api.name}" version="${api.version}" flowRef="api-main" create="false" doc:name="API Autodiscovery"/>
+  <flow name="api-main">
+    <http:listener path="${api.http.listener.path}" config-ref="api-httpListenerConfig" doc:name="HTTP" />    
+        <set-variable variableName="transactionId" value="#[(message.inboundProperties['x-transaction-id'] != null) ? message.inboundProperties['x-transaction-id'] : java.util.UUID.randomUUID().toString().replace('-', '')]" doc:name="Set Transaction ID"/>
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['soapaction']]&quot; }" level="INFO" category="Audit" doc:name="Logger"/>
+        <response>
+            <choice doc:name="Choice">
+                <when expression="#[flowVars.errorRaised != null &amp;&amp; flowVars.errorRaised == true]">
+                    <set-payload value="#[payload]" doc:name="Pass Through"/>
+                </when>
+                <otherwise>
+                    <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;response&quot;: &quot;Success&quot; }" level="INFO" category="Audit" doc:name="Logger"/>
+                </otherwise>
+            </choice>
+        </response>
+
+    <apikit-soap:router config-ref="/SOAPInterfaceService/api/api-config" doc:name="SOAP Router"/>
+    <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy"/>
+  </flow>
+  <flow name="GetTemplate:/SOAPInterfaceService/api/api-config">
+
+    <set-payload value="&lt;v1:Response xmlns:v1=&quot;http://com.mulesoft.examples/soap-api/v1&quot;&gt;This is a mocked respone!&lt;/v1:Response&gt;" doc:name="Set Payload"/>
+  </flow>
+</mule>

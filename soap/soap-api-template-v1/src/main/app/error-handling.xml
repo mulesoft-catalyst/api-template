@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    
+    <choice-exception-strategy name="global-exception-strategy">    
+        <catch-exception-strategy when="#[exception.causedBy(org.mule.module.http.internal.request.ResponseValidatorException)]" doc:name="Caused By (org.mule.module.http.internal.request.ResponseValidatorException)">
+            <choice doc:name="Choice">
+                <when expression="#[message.inboundProperties['http.status'] == 401]">
+                    <set-variable variableName="errorMessage" value="Upstream service did not authorize the request." doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>
+                </when>
+                <when expression="#[message.inboundProperties['http.status'] == 403]">
+                    <set-variable variableName="errorMessage" value="Access to the upstream service is forbidden." doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>
+                </when>
+                <when expression="#[message.inboundProperties['http.status'] &lt; 500]">
+                    <set-variable variableName="errorMessage" value="Upstream service unable to fulfil request." doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>                    
+                </when>
+                <otherwise>
+                    <set-variable variableName="errorMessage" value="Upstream service internal error." doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>                
+                </otherwise>
+            </choice>
+        </catch-exception-strategy>
+        <catch-exception-strategy when="#[exception.causedBy(org.mule.extension.validation.api.ValidationException)]" doc:name="Caused By (org.mule.extension.validation.api.ValidationException)">
+            <choice doc:name="Choice">
+                <when expression="#[message.inboundProperties['http.status'] == 401]">
+                    <set-variable variableName="errorMessage" value="Upstream service did not authorize the request. #[exception.cause.message]" doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>
+                </when>
+                <when expression="#[message.inboundProperties['http.status'] == 403]">
+                    <set-variable variableName="errorMessage" value="Access to the upstream service is forbidden. #[exception.cause.message]" doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>
+                </when>
+                <when expression="#[message.inboundProperties['http.status'] &lt; 500]">
+                    <set-variable variableName="errorMessage" value="Upstream service unable to fulfil request. #[exception.cause.message]" doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>                    
+                </when>
+                <otherwise>
+                    <set-variable variableName="errorMessage" value="Upstream service internal error. #[exception.cause.message]" doc:name="Set Error Message"/>
+                    <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>                
+                </otherwise>
+            </choice>
+        </catch-exception-strategy>
+        <catch-exception-strategy when="#[exception.causedBy(java.util.concurrent.TimeoutException)]" doc:name="Caused By (java.util.concurrent.TimeoutException)">
+            <set-variable variableName="errorMessage" value="Unable to connect to upstream service. Request timed out." doc:name="Set Error Message"/>
+            <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>            
+        </catch-exception-strategy>
+        <catch-exception-strategy when="#[exception.causedBy(java.util.NoSuchElementException)]" doc:name="Caused By (java.util.NoSuchElementException)">
+            <set-variable variableName="errorMessage" value="Unable to connect to upstream service." doc:name="Set Error Message"/>
+            <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>            
+        </catch-exception-strategy>        
+        <catch-exception-strategy when="#[exception.causeMatches('java.net')]" doc:name="Cause Matches ('java.net')">
+            <set-variable variableName="errorMessage" value="Unable to connect to upstream service." doc:name="Set Error Message"/>
+            <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>            
+        </catch-exception-strategy>
+        <catch-exception-strategy when="#[exception.causedBy(java.lang.RuntimeException)]" doc:name="Caused by (java.lang.RuntimeException)">
+            <expression-component doc:name="Set Error Info"><![CDATA[if (flowVars.errorMessage == null || flowVars.errorMessage == '') {
+	flowVars.errorMessage = "Unable to fullfil request due to internal error.";
+}
+
+if (flowVars.errorDescription == null || flowVars.errorDescription == '') {
+	flowVars.errorDescription = null;
+}
+
+if (flowVars.errorCode == null || flowVars.errorCode == '') {
+	payload = "soap:Server";
+} else {
+	payload = flowVars.errorCode;
+}
+
+return payload;]]></expression-component>
+            <flow-ref name="global-prepare-error-response-sub-flow" doc:name="Prepare Error Response"/>
+        </catch-exception-strategy>
+        <catch-exception-strategy doc:name="Default">
+            <set-variable variableName="errorMessage" value="Unable to fullfil request due to internal error." doc:name="Set Error Message"/>
+            <flow-ref name="global-server-error-response-sub-flow" doc:name="Server Error Response"/>
+        </catch-exception-strategy>
+    </choice-exception-strategy>
+    
+    <sub-flow name="global-server-error-response-sub-flow">
+        <set-payload value="soap:Server" doc:name="Set Error Code" mimeType="application/java"/>
+        <flow-ref name="global-prepare-error-response-sub-flow" doc:name="Prepare Error Response"/>
+    </sub-flow>
+    <sub-flow name="global-client-error-response-sub-flow">
+        <set-payload value="soap:Client" doc:name="Set Error Code" mimeType="application/java"/>
+        <flow-ref name="global-prepare-error-response-sub-flow" doc:name="Prepare Error Response"/>
+    </sub-flow>
+    
+    <sub-flow name="global-prepare-error-response-sub-flow">
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;response&quot;: &quot;Fault&quot;, &quot;errorCode&quot;: &quot;#[payload]&quot;, &quot;errorMessage&quot;: &quot;#[flowVars.errorMessage != null ? flowVars.errorMessage : '']&quot;, &quot;errorDescription&quot;: &quot;#[flowVars.errorDescription != null ? flowVars.errorDescription : '']&quot; }" level="ERROR" doc:name="Logger" category="Audit"/>
+        <set-variable variableName="errorRaised" value="#[true]" doc:name="Set Error Raised"/>
+        <dw:transform-message doc:name="Create SOAP Fault Message" metadata:id="3c5d05ff-6571-423f-a7b3-c14721f7ca8b">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml encoding = "UTF-8" , skipNullOn = "everywhere"
+%namespace soap http://schemas.xmlsoap.org/soap/envelope/
+---
+{
+	soap#Fault: {
+		soap#faultcode: payload,
+		soap#faultstring: flowVars.errorMessage,
+		soap#detail: flowVars.errorDescription
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </sub-flow>
+    
+</mule>

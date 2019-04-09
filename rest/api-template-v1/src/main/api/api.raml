@@ -1,0 +1,16 @@
+#%RAML 1.0
+title: Template API
+version: v1
+baseUri: http://template.api.mulesoft.com/api/{version}
+
+/resource:
+  get:
+    description: Example resource.
+    responses:
+      200:
+        body:
+          application/json:
+            example: |
+              {
+                "message": "This is a dummy RAML that shoud be replaced with the actual API RAML."
+              }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:mock="http://www.mulesoft.org/schema/mule/mock"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mock http://www.mulesoft.org/schema/mule/mock/current/mule-mock.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
+http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/current/mule-cxf.xsd
+http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+    
+    <context:property-placeholder location="test.properties"/>
+    
+    <munit:config doc:name="Munit configuration" mock-connectors="false" mock-inbounds="false"/>
+    
+    <spring:beans>
+        <spring:import resource="classpath:test-mule-config.xml"/>
+        <spring:import resource="classpath:error-handling.xml"/>
+        <spring:import resource="classpath:api-soap.xml"/>
+    </spring:beans>
+
+    <!-- Uncomment to see an example
+    <munit:test name="api-soap-test-suite-GetTemplate:/SOAPInterfaceService/api/api-configTest" description="Test">
+        <set-payload value="#[getResource('scaffolder/request/get_template_request.xml').asString()]" doc:name="Set Payload" encoding="UTF-8" mimeType="application/xml"/>
+        <processor-chain doc:name="Processor Chain">
+            <cxf:proxy-client payload="body" doc:name="CXF"/>
+            <http:request config-ref="http-request-configuration" path="/" method="POST" doc:name="HTTP"/>
+        </processor-chain>
+        <mulexml:dom-to-xml-transformer mimeType="application/xml" outputEncoding="UTF-8" doc:name="DOM to XML"/>
+        <munit:assert-true message="The HTTP Status code is not correct!" condition="#[messageInboundProperty('http.status').is(eq(200))]" doc:name="assert that - http.status eq 200" />
+        <munit:assert-on-equals message="The response payload is not correct!" expectedValue="#[getResource('scaffolder/response/get_template_response.xml').asString()]" actualValue="#[payload]" doc:name="assert that - payload is as expected" />
+    </munit:test>
+    -->
+
+</mule>

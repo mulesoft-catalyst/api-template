@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/schema/mule/api-platform-gw/current/mule-api-platform-gw.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+    <!-- HTTP Listener Connector -->
+    <http:listener-config name="api-httpListenerConfig" host="${api.http.listener.host}" port="${api.http.listener.port}" doc:name="HTTP Listener Configuration" />
+    <!-- APIkit Router Configuration -->
+    <apikit:config name="api-config" raml="api.raml" consoleEnabled="${api.console.enabled}" doc:name="Router" />
+    <!-- API Autodiscovery Configuration -->
+    <api-platform-gw:api apiName="${api.name}" version="${api.version}" flowRef="api-main" create="false" apikitRef="api-config" doc:name="API Autodiscovery" />
+    <flow name="api-main">
+        <http:listener config-ref="api-httpListenerConfig" path="${api.http.listener.path}" doc:name="HTTP" />
+        <set-variable variableName="transactionId" value="#[(message.inboundProperties['x-transaction-id'] != null) ? message.inboundProperties['x-transaction-id'] : java.util.UUID.randomUUID().toString().replace('-', '')]" doc:name="Set Transaction ID" />
+        <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;request&quot;: &quot;#[message.inboundProperties['http.method']] #[message.inboundProperties['http.request.uri']]&quot; }" level="INFO" doc:name="Logger" category="Audit" />
+        <response>
+            <choice doc:name="Choice">
+                <when expression="#[flowVars.errorRaised != null &amp;&amp; flowVars.errorRaised == true]">
+                    <set-payload value="#[payload]" doc:name="Pass Through"/>
+                </when>
+                <otherwise>
+                    <logger message="{ &quot;transaction&quot;: &quot;#[flowVars.transactionId]&quot;, &quot;response&quot;: &quot;#[message.outboundProperties['http.status']]&quot; }" level="INFO" category="Audit" doc:name="Logger"/>
+                </otherwise>
+            </choice>
+        </response>
+        <apikit:router config-ref="api-config" doc:name="APIkit Router" />
+        <exception-strategy ref="global-exception-strategy" doc:name="Reference Exception Strategy" />
+    </flow>
+</mule>
